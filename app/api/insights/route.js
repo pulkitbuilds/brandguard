@@ -18,5 +18,7 @@ export const GET = guard(APPROVER, async () => {
     }
   }
   const top = (o) => Object.entries(o).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  return json({ total: all.length, funnel, categories: top(cat), rules: Object.values(rules).sort((a, b) => b.count - a.count), terms: top(terms).slice(0, 8) });
+  const imps = await store().imports();
+  const proposed = imps.reduce((a, i) => a + i.proposed, 0), accepted = imps.reduce((a, i) => a + i.accepted, 0);
+  return json({ imports: { count: imps.length, proposed, accepted, rate: proposed ? accepted / proposed : null }, total: all.length, funnel, categories: top(cat), rules: Object.values(rules).sort((a, b) => b.count - a.count), terms: top(terms).slice(0, 8) });
 });

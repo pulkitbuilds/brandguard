@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm:next-dev\" \"npm:api-dev\"",
+    "dev": "concurrently \"npm:next-dev\" \"npm:api-dev\" \"npm:extractor-dev\"",
     "next-dev": "next dev",
+    "extractor-dev": "python -m uvicorn app:app --app-dir extractor --port 8001",
     "api-dev": "python -m uvicorn api.index:app --reload --port 8000",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
-    "next": "^16.4.5",
+    "next": "14.2.18",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

@@ -6,11 +6,22 @@ create table if not exists profiles (
   role text not null default 'creator' check (role in ('creator','manager','reviewer','admin')),
   created_at timestamptz not null default now()
 );
-create table if not exists rulebooks (
-  id text primary key default 'default',
+-- Every rulebook save is a new row; rollback copies an old row forward.
+create table if not exists rulebook_versions (
+  version int primary key,
   rules text not null,
   facts text not null default '',
-  updated_at timestamptz not null default now()
+  created_by text,
+  note text,
+  created_at timestamptz not null default now()
+);
+create table if not exists guideline_imports (
+  id bigint generated always as identity primary key,
+  filename text,
+  proposed int not null default 0,
+  accepted int not null default 0,
+  user_email text,
+  created_at timestamptz not null default now()
 );
 create table if not exists reviews (
   id uuid primary key default gen_random_uuid(),
@@ -18,6 +29,8 @@ create table if not exists reviews (
   content text not null,
   findings jsonb not null default '[]',
   dismissed jsonb not null default '[]',
+  source jsonb,                     -- uploaded file: kind, filename, word boxes, page previews
+  rulebook_version int,             -- which rule version last checked this review
   stage int not null default 0 check (stage between 0 and 3),
   author_id uuid,
   author_email text,
@@ -34,6 +47,7 @@ create table if not exists audit_log (
 );
 -- RLS on with no public policies: all access goes through the server (service-role key).
 alter table profiles enable row level security;
-alter table rulebooks enable row level security;
+alter table rulebook_versions enable row level security;
+alter table guideline_imports enable row level security;
 alter table reviews enable row level security;
 alter table audit_log enable row level security;

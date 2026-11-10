@@ -1,0 +1,11 @@
+import { locate } from "../lib/locate.js";
+import assert from "node:assert";
+const pdf = { kind: "pdf", words: [{ s: 0, e: 3, p: 1, l: 1, b: [0, 0, 10, 10] }, { s: 4, e: 8, p: 2, l: 5, b: [20, 30, 60, 50] }, { s: 9, e: 12, p: 2, l: 6, b: [10, 60, 40, 80] }] };
+let r = locate({ i: 5, len: 2 }, pdf); assert.equal(r.label, "Page 2"); assert.deepEqual(r.boxes[0].b, [20, 30, 60, 50]);
+r = locate({ i: 5, len: 6 }, pdf); assert.equal(r.boxes.length, 2, "multi-line finding gets one box per line");
+r = locate({ i: 0, len: 12 }, pdf); assert.equal(r.label, "Pages 1-2");
+assert.equal(locate({ i: 0, len: 2 }, { kind: "image", words: [{ s: 0, e: 2, p: 1, l: 1, b: [1, 1, 2, 2] }] }).label, "Image region");
+const docx = { kind: "docx", words: [], paras: [{ s: 0, e: 10, n: 1 }, { s: 12, e: 30, n: 2 }] };
+assert.equal(locate({ i: 15, len: 4 }, docx).label, "Paragraph 2");
+assert.equal(locate({ i: 0, len: 4 }, null), null);
+console.log("locate tests passed");

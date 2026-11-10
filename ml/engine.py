@@ -4,6 +4,7 @@ import difflib
 import re
 
 from .retrieval import TfIdf
+from .semantic import semantic_claims, semantic_facts
 
 SUPER = re.compile(
     r"(?<!\w)(best|no\.?\s?1|number one|guaranteed|100%|world-?class|unbeatable|"
@@ -22,8 +23,8 @@ def _u16(text, i):
     return len(text[:i].encode("utf-16-le")) // 2
 
 
-def review(text, rules_text, facts_text=""):
-    out = []
+def review(text, rules_text, facts_text="", semantic=True):
+    out, exemplars = [], []
     lines = [l.strip() for l in facts_text.splitlines() if l.strip()]
     approved = [l.split(":", 1)[1].strip() for l in lines if l.lower().startswith("approved claim:")]
     facts = [
@@ -42,6 +43,9 @@ def review(text, rules_text, facts_text=""):
     for line in rules_text.splitlines():
         p = [x.strip() for x in line.split("|")]
         if len(p) < 4 or not p[1]:
+            continue
+        if p[0].lower() == "semantic":  # exemplar of a prohibited claim, matched by meaning
+            exemplars.append((p[4] if len(p) > 4 and p[4] else "Claims", p[1], p[2], p[3]))
             continue
         try:
             rx = re.compile(p[1], re.I)
@@ -66,6 +70,11 @@ def review(text, rules_text, facts_text=""):
         out.append(dict(cat="Claims", i=m.start(), len=len(m.group(0)), text=m.group(0), rep=None,
                         src="Claims policy (auto-detected)", conf=0.7))
 
+    # 2b) Meaning-based claim matching against the Semantic exemplars
+    if semantic:
+        covered = [(f["i"], f["i"] + f["len"]) for f in out]
+        out += semantic_claims(text, exemplars, covered, claim_ok)
+
     # 3) Facts: fuzzy-match the fact label inside each sentence, compare the number before it
     for label, val in facts:
         want = int(re.sub(r"\D", "", val) or 0)
@@ -84,6 +93,9 @@ def review(text, rules_text, facts_text=""):
                 out.append(dict(cat="Facts", i=start, len=len(m.group(1)), text=m.group(1),
                                 rep=re.sub(r"\+$", "", val),
                                 src=f"Approved facts: {label} = {val}", conf=0.9))
+
+    if semantic:
+        out += semantic_facts(text, facts, {f["i"] for f in out if f["cat"] == "Facts"}, claim_ok)
 
     # 4) Accessibility + readability
     for m in re.finditer(r"<img\b(?![^>]*\balt=)[^>]*>|!\[\]\([^)]*\)", text, re.I):

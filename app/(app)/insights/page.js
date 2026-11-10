@@ -16,6 +16,10 @@ export default function Insights() {
   const unclear = d.rules.filter((r) => r.count >= 1 && r.dismissed / r.count >= 0.5);
   return (
     <div className="stack">
+      <section>
+        <h2>Guideline imports</h2>
+        {d.imports.count ? <p style={{ margin: 0 }}>{d.imports.count} import(s): admins accepted {d.imports.accepted} of {d.imports.proposed} proposed rules ({Math.round(d.imports.rate * 100)}%).</p> : <p className="src">No guideline has been imported yet.</p>}
+      </section>
       <section><h2>Where reviews are in the pipeline ({d.total} total)</h2><Bars rows={d.funnel.map((count, i) => ({ name: STAGES[i], count }))} /></section>
       <section><h2>Issues by type</h2>{d.categories.length ? <Bars rows={d.categories} /> : <p className="src">No issues recorded yet.</p>}</section>
       <section><h2>Most repeated mistakes</h2>{d.terms.length ? <Bars rows={d.terms} /> : <p className="src">Nothing yet.</p>}</section>

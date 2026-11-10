@@ -11,7 +11,8 @@ export const GET = guard(null, async (_req, u) => {
 
 export const POST = guard(null, async (req, u) => {
   const b = await req.json();
-  const r = await store().createReview({ title: (b.title || b.content || "Untitled").slice(0, 60), content: b.content || "", findings: b.findings || [], dismissed: b.dismissed || [], author_id: u.id, author_email: u.email });
+  const ver = (await store().rulebook())?.version || 0;
+  const r = await store().createReview({ source: b.source || null, rulebook_version: ver, title: (b.title || b.content || "Untitled").slice(0, 60), content: b.content || "", findings: b.findings || [], dismissed: b.dismissed || [], author_id: u.id, author_email: u.email });
   await store().addAudit({ review_id: r.id, user_email: u.email, role: u.role, action: "Created draft" });
   for (const n of b.notes || []) await store().addAudit({ review_id: r.id, user_email: u.email, role: u.role, action: n });
   return json({ id: r.id });

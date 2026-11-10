@@ -17,8 +17,8 @@ export const PATCH = guard(null, async (req, u, { id }) => {
   if (r.author_id !== u.id && u.role !== "admin") throw err(403, "Only the author can edit this draft");
   if (r.stage !== 0) throw err(409, "This review is in approval. Ask for it to be returned before editing.");
   const b = await req.json();
-  const patch = {};
-  for (const k of ["title", "content", "findings", "dismissed"]) if (b[k] !== undefined) patch[k] = b[k];
+  const patch = { rulebook_version: (await store().rulebook())?.version || 0 };
+  for (const k of ["title", "content", "findings", "dismissed", "source"]) if (b[k] !== undefined) patch[k] = b[k];
   const updated = await store().updateReview(id, patch);
   for (const n of b.notes || []) await store().addAudit({ review_id: id, user_email: u.email, role: u.role, action: n });
   return json({ ok: true, stage: updated.stage });

@@ -1,0 +1,34 @@
+{
+  "drafts": 110,
+  "labelled_violations": 85,
+  "embedder": "local",
+  "round2_engine": {
+    "precision": 0.941,
+    "recall": 0.565,
+    "f1": 0.706,
+    "tp": 48,
+    "fp": 3,
+    "fn": 37,
+    "recall_by_kind": {
+      "exact": 1.0,
+      "rephrased": 0.119
+    }
+  },
+  "round3_engine": {
+    "precision": 0.961,
+    "recall": 0.859,
+    "f1": 0.907,
+    "tp": 73,
+    "fp": 3,
+    "fn": 12,
+    "recall_by_kind": {
+      "exact": 1.0,
+      "rephrased": 0.714
+    }
+  },
+  "false_positives_round3": [
+    "draft 54 (benign): Claims -> 'best'",
+    "draft 94 (benign): Claims -> 'best'",
+    "draft 102 (benign): Claims -> 'best'"
+  ]
+}
