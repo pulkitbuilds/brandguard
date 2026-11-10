@@ -5,10 +5,10 @@ Pre-publication brand-governance checker with role-based logins. Creators submit
 ## Round 3 additions
 
 1. **Document and image review.** Upload PDF, DOCX, PNG or JPG. Text is extracted (OCR for images and scanned PDF pages) and every finding is pinned to its page, paragraph or image region, with boxes drawn on the original pages. Service: `extractor/`.
-2. **Meaning-based review, grounded explanations, measured accuracy.** `Semantic` rules hold an example of a prohibited claim and match sentences with the same meaning. Approved-fact labels match synonyms ("customers" vs "clients"). The Explain button retrieves the closest rulebook lines and, if `ANTHROPIC_API_KEY` is set, writes a cited explanation and a rewrite that is re-checked by the rule engine and discarded if it would raise any finding. The server also counts these findings when you submit. Evaluation: `ml/eval/`.
+2. **Meaning-based review, grounded explanations, measured accuracy.** `Semantic` rules hold an example of a prohibited claim and match sentences with the same meaning. Approved-fact labels match synonyms ("customers" vs "clients"). The Explain button retrieves the closest rulebook lines and, if `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set (choose with `LLM_PROVIDER`), writes a cited explanation and a rewrite that is re-checked by the rule engine and discarded if it would raise any finding. The server also counts these findings when you submit. Evaluation: `review/ml/eval/`.
 3. **Guideline to rulebook, with versions.** Admins upload a brand guideline; rules are proposed with the page they came from. Admins accept, edit or reject each. Every rulebook save is a new version, rollback creates a new version from an old one, each review records which version checked it, and Insights shows the share of proposed rules accepted.
 
-### Measured results (`python -m ml.eval.run_eval`)
+### Measured results (`cd review && python -m ml.eval.run_eval`)
 
 110 synthetic labelled drafts, 85 labelled violations, offline embedder:
 
@@ -38,7 +38,7 @@ Permissions and approval rules are enforced on the server, which re-runs the che
 | Path | What it is |
 |---|---|
 | `app/`, `components/`, `lib/` | Next.js 14 app: tabs, API routes, auth, data layer (Supabase or in-memory) |
-| `api/index.py`, `ml/` | FastAPI review service (`/api/py/*`): rule engine, semantic matching, grounded explanations, guideline proposer, evaluation |
+| `review/` | FastAPI review service (`main.py`, `ml/`): rule engine, semantic matching, grounded explanations, guideline proposer, evaluation. Routes live under `/api/py/*` |
 | `extractor/` | Upload service: PDF (PyMuPDF), DOCX (python-docx), images (Tesseract OCR). Has a Dockerfile |
 | `supabase/schema.sql` | profiles, rulebook_versions, guideline_imports, reviews, audit_log |
 | `tests/` | `test_locate.mjs`, `e2e_api.py` (roles and workflow), `e2e_round3.py` (uploads, semantic, versions, import) |
@@ -47,9 +47,10 @@ Permissions and approval rules are enforced on the server, which re-runs the che
 
 ```bash
 npm install
-pip install -r requirements.txt -r extractor/requirements.txt
+pip install -r review/requirements.txt -r extractor/requirements.txt
 # OCR needs the Tesseract program: macOS `brew install tesseract`, Ubuntu `sudo apt install tesseract-ocr`
 npm run dev          # Next.js :3000, review service :8000, extractor :8001
+# or, with the Vercel CLI: `vercel dev` runs all three services and injects the binding variables
 ```
 
 Open http://localhost:3000 and use a demo account (password `demo1234`). Data lives in memory and resets on restart. PDF and DOCX work without Tesseract; images need it.
@@ -61,17 +62,30 @@ Open http://localhost:3000 and use a demo account (password `demo1234`). Data li
 3. Optional: `node --env-file=.env.local scripts/seed-demo-users.mjs`. The first account that signs up becomes admin.
 4. Turn off "Confirm email" in Supabase Auth for quick testing.
 
-## Deploy
+## Deploy to Vercel (Services)
 
-1. **Extractor** (Tesseract cannot run in Vercel functions): deploy `extractor/` as a Docker service on Render, Fly or Hugging Face Spaces. Set `EXTRACTOR_KEY` there.
-2. **App** on Vercel: import the repo and set the Supabase variables, `EXTRACTOR_URL` (the service URL), `EXTRACTOR_KEY` and `INTERNAL_KEY` (any long random string; it protects the explain and import endpoints). Optionally `ANTHROPIC_API_KEY` and `EMBEDDINGS_URL`/`EMBEDDINGS_KEY`.
-3. Vercel Deployment Protection can block the app's calls to its own `/api/py/*` on preview deployments. Use the production URL or turn protection off for testing.
+`vercel.json` uses Vercel Services (beta): one project, three services.
+
+| Service | Root | Public? | What it does |
+|---|---|---|---|
+| `app` | `.` | yes (catch-all) | Next.js app and API routes |
+| `review` | `review/` | only `/api/py/review` and `/api/py/health` | Python review engine. Explain and guideline import are not routed publicly, so only the app can call them |
+| `extractor` | `extractor/` | no | PDF, DOCX and image reading |
+
+The `app` service has two bindings, which make Vercel inject the private URLs of the other services as `REVIEW_URL` and `EXTRACTOR_URL`. Do not set those two by hand on Vercel. Everything else is a normal project environment variable:
+
+1. Push to GitHub and import the repo in Vercel.
+2. Add the Supabase variables from `.env.example`. Add `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` (and the embeddings variables) if you want AI explanations.
+3. `INTERNAL_KEY` is now optional (the Python endpoints it protected are not public). Keeping it set is harmless.
+4. Deploy.
+
+**Image OCR on Vercel:** the extractor runs as a plain FastAPI service, which has no Tesseract program. PDF and DOCX work; image uploads (and scanned PDFs) will report that OCR is not installed. To get OCR, either host `extractor/` with its Dockerfile elsewhere and set `EXTRACTOR_URL` yourself (remove the `extractor` binding), or try `"runtime": "container"` on the extractor service. Neither has been tested.
 
 ## Tests
 
 ```bash
 node tests/test_locate.mjs
-python -m ml.eval.run_eval
+(cd review && python -m ml.eval.run_eval)
 # with all three services running (INTERNAL_KEY=k3 on Next.js and the review service), on fresh state:
 python tests/e2e_api.py && python tests/e2e_round3.py
 ```
@@ -79,7 +93,7 @@ Sample files are in `tests/fixtures/`. Run the scripts from the project root.
 
 ## Known limits
 
-- Not tested here: the UI in a browser, a live Supabase project, a live Vercel deployment, a deployed extractor, any real LLM call (explanations and rewrites were tested with stubbed model replies, including the cited-only and re-check rules), and remote embeddings.
+- Not tested here: the Vercel Services deployment itself (the config follows Vercel's documentation and the app was tested locally with simulated binding variables), the UI in a browser, a live Supabase project, a live Vercel deployment, a deployed extractor, any real LLM call (explanations and rewrites were tested with stubbed Anthropic replies and a mocked Gemini HTTP response, including the cited-only and re-check rules), and remote embeddings.
 - No pgvector. Meaning-based retrieval runs in the review service on each request. Fine for a few hundred rules; a vector table would be the next step.
 - Uploads are limited to 4 MB (Vercel request limit) and 10 pages. Extracted text is read-only; fix the original file and upload again. Accept-fix is off in document mode.
 - Guideline proposals are pattern-based unless an AI key is set. They only catch rules written in common phrasing ("use X instead of Y", "never say 'Z'") and each needs admin review. Facts already in the rulebook can be proposed again.

@@ -1,15 +1,10 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
-  // /api/py/* is served by the Python (FastAPI) backend in api/index.py
+  // Local `npm run dev` only: forward /api/py/* to the review service on :8000.
+  // On Vercel, vercel.json routes /api/py/review to the "review" service instead.
   async rewrites() {
-    return [
-      {
-        source: "/api/py/:path*",
-        destination:
-          process.env.NODE_ENV === "development"
-            ? "http://127.0.0.1:8000/api/py/:path*"
-            : "/api/",
-      },
-    ];
+    return process.env.NODE_ENV === "development"
+      ? [{ source: "/api/py/:path*", destination: "http://127.0.0.1:8000/api/py/:path*" }]
+      : [];
   },
 };

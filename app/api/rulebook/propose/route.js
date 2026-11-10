@@ -2,6 +2,7 @@ import { guard, json } from "@/lib/route";
 import { store } from "@/lib/store";
 import { extractFile } from "@/lib/extract";
 import { err } from "@/lib/workflow";
+import { reviewBase } from "@/lib/services";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -13,7 +14,7 @@ export const POST = guard(["admin"], async (req) => {
   for (const w of doc.words) if (!(w.p in first)) first[w.p] = w.s;
   const page_starts = Object.entries(first).map(([p, s]) => [s, Number(p)]);
   const existing = (await store().rulebook())?.rules || "";
-  const r = await fetch(new URL(req.url).origin + "/api/py/propose", {
+  const r = await fetch(reviewBase(new URL(req.url).origin) + "/api/py/propose", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(process.env.INTERNAL_KEY ? { "x-internal-key": process.env.INTERNAL_KEY } : {}) },
     body: JSON.stringify({ text: doc.text, page_starts, existing_rules: existing }),

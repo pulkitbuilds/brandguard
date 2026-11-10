@@ -6,7 +6,7 @@
     "dev": "concurrently \"npm:next-dev\" \"npm:api-dev\" \"npm:extractor-dev\"",
     "next-dev": "next dev",
     "extractor-dev": "python -m uvicorn app:app --app-dir extractor --port 8001",
-    "api-dev": "python -m uvicorn api.index:app --reload --port 8000",
+    "api-dev": "python -m uvicorn main:app --app-dir review --reload --port 8000",
     "build": "next build",
     "start": "next start"
   },
