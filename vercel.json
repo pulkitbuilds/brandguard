@@ -1,5 +1,28 @@
 {
-  "functions": {
-    "api/index.py": { "includeFiles": "ml/**" }
-  }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "framework": "nextjs",
+      "bindings": [
+        { "type": "service", "service": "review", "format": "url", "env": "REVIEW_URL" },
+        { "type": "service", "service": "extractor", "format": "url", "env": "EXTRACTOR_URL" }
+      ]
+    },
+    "review": {
+      "root": "review",
+      "framework": "fastapi",
+      "entrypoint": "main:app"
+    },
+    "extractor": {
+      "root": "extractor",
+      "framework": "fastapi",
+      "entrypoint": "app:app"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/py/review", "destination": { "service": "review" } },
+    { "source": "/api/py/health", "destination": { "service": "review" } },
+    { "source": "/(.*)", "destination": { "service": "app" } }
+  ]
 }
